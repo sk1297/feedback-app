@@ -1,22 +1,29 @@
-FROM openjdk:17-jre-slim
-
-# Install Maven
-RUN apt-get update && apt-get install -y maven
+# Build stage
+FROM maven:3.8.6-openjdk-17 AS build
 
 WORKDIR /app
 
-# Copy project files
-COPY . .
+# Copy pom.xml and download dependencies
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
 
-# Build the application
+# Copy source code and build
+COPY src ./src
 RUN mvn clean package -DskipTests
+
+# Runtime stage  
+FROM openjdk:17-jre-slim
+
+WORKDIR /app
+
+# Copy the built JAR from build stage
+COPY --from=build /app/target/*.jar app.jar
 
 # Expose port
 EXPOSE 8080
-
 
 # Set environment variables
 ENV SPRING_PROFILES_ACTIVE=prod
 
 # Run the application
-CMD ["java", "-jar", "target/*.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
