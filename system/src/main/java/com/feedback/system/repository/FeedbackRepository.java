@@ -10,28 +10,28 @@ import java.util.List;
 
 @Repository
 public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
-    
+
     // Find feedback between two dates
     List<Feedback> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
-    
+
     // Find all feedback ordered by creation date (newest first)
     @Query("SELECT f FROM Feedback f ORDER BY f.createdAt DESC")
     List<Feedback> findAllOrderByCreatedAtDesc();
-    
-    // Find today's feedback
-    @Query("SELECT f FROM Feedback f WHERE DATE(f.createdAt) = CURRENT_DATE ORDER BY f.createdAt DESC")
+
+    // Find today's feedback - PostgreSQL compatible
+    @Query("SELECT f FROM Feedback f WHERE DATE_TRUNC('day', f.createdAt) = DATE_TRUNC('day', CURRENT_TIMESTAMP) ORDER BY f.createdAt DESC")
     List<Feedback> findTodaysFeedback();
-    
+
     // Find feedback by phone number
     List<Feedback> findByPhoneNumberOrderByCreatedAtDesc(String phoneNumber);
-    
+
     // Find feedback by emoji
     List<Feedback> findByEmojiOrderByCreatedAtDesc(String emoji);
-    
-    // Get feedback count for today
-    @Query("SELECT COUNT(f) FROM Feedback f WHERE DATE(f.createdAt) = CURRENT_DATE")
+
+    // Get feedback count for today - PostgreSQL compatible
+    @Query("SELECT COUNT(f) FROM Feedback f WHERE DATE_TRUNC('day', f.createdAt) = DATE_TRUNC('day', CURRENT_TIMESTAMP)")
     Long getTodaysFeedbackCount();
-    
+
     // Get feedback count by emoji
     @Query("SELECT f.emoji, COUNT(f) FROM Feedback f GROUP BY f.emoji")
     List<Object[]> getFeedbackCountByEmoji();
@@ -45,24 +45,27 @@ public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
             "GROUP BY f.phoneNumber ORDER BY COUNT(f) DESC")
     List<Object[]> findTopContributors(@Param("limit") int limit);
 
-    @Query("SELECT f FROM Feedback f ORDER BY f.createdAt DESC")
+    @Query("SELECT f FROM Feedback f ORDER BY f.createdAt DESC LIMIT 5")
     List<Feedback> findTop5ByOrderByCreatedAtDesc();
 
-    // Additional useful queries for analytics
+    // Additional useful queries for analytics - PostgreSQL compatible
     @Query("SELECT COUNT(f) FROM Feedback f WHERE f.createdAt >= :startDate AND f.createdAt <= :endDate")
     Long countFeedbackBetweenDates(@Param("startDate") LocalDateTime startDate,
                                    @Param("endDate") LocalDateTime endDate);
 
-    @Query("SELECT HOUR(f.createdAt), COUNT(f) FROM Feedback f GROUP BY HOUR(f.createdAt)")
+    // PostgreSQL uses EXTRACT instead of HOUR() function
+    @Query("SELECT EXTRACT(HOUR FROM f.createdAt), COUNT(f) FROM Feedback f GROUP BY EXTRACT(HOUR FROM f.createdAt) ORDER BY EXTRACT(HOUR FROM f.createdAt)")
     List<Object[]> getFeedbackCountByHour();
 
-    @Query("SELECT DATE(f.createdAt), COUNT(f) FROM Feedback f " +
-            "WHERE f.createdAt >= :startDate GROUP BY DATE(f.createdAt) ORDER BY DATE(f.createdAt)")
+    // PostgreSQL uses DATE_TRUNC instead of DATE() function
+    @Query("SELECT DATE_TRUNC('day', f.createdAt), COUNT(f) FROM Feedback f " +
+            "WHERE f.createdAt >= :startDate GROUP BY DATE_TRUNC('day', f.createdAt) ORDER BY DATE_TRUNC('day', f.createdAt)")
     List<Object[]> getDailyFeedbackCount(@Param("startDate") LocalDateTime startDate);
 
-    @Query("SELECT MONTH(f.createdAt), YEAR(f.createdAt), COUNT(f) FROM Feedback f " +
-            "WHERE f.createdAt >= :startDate GROUP BY MONTH(f.createdAt), YEAR(f.createdAt) " +
-            "ORDER BY YEAR(f.createdAt), MONTH(f.createdAt)")
+    // PostgreSQL uses EXTRACT for month and year
+    @Query("SELECT EXTRACT(MONTH FROM f.createdAt), EXTRACT(YEAR FROM f.createdAt), COUNT(f) FROM Feedback f " +
+            "WHERE f.createdAt >= :startDate GROUP BY EXTRACT(MONTH FROM f.createdAt), EXTRACT(YEAR FROM f.createdAt) " +
+            "ORDER BY EXTRACT(YEAR FROM f.createdAt), EXTRACT(MONTH FROM f.createdAt)")
     List<Object[]> getMonthlyFeedbackCount(@Param("startDate") LocalDateTime startDate);
 
     @Query("SELECT f FROM Feedback f WHERE f.feedbackText IS NOT NULL AND f.feedbackText != '' " +
