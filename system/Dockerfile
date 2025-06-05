@@ -14,6 +14,7 @@ RUN mvn clean package -DskipTests
 # Expose port
 EXPOSE 8080
 
+
 # Set environment variables
 ENV SPRING_PROFILES_ACTIVE=prod
 
